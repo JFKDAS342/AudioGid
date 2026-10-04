@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:background="@drawable/exhibit_card_background">
+
+    <!-- Изображение картины -->
+    <ImageView
+        android:id="@+id/imageExhibit"
+        android:layout_width="match_parent"
+        android:layout_height="180dp"
+        android:scaleType="centerCrop"
+        android:src="@mipmap/ic_launcher"
+        android:contentDescription="Изображение картины" />
+
+    <!-- Автор -->
+    <TextView
+        android:id="@+id/textAuthor"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Автор"
+        android:textSize="17sp"
+        android:textStyle="bold"
+        android:textColor="#333333" />
+
+    <!-- Название -->
+    <TextView
+        android:id="@+id/textTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="Название картины"
+        android:textSize="15sp"
+        android:textColor="#333333" />
+
+    <!-- Кнопка скачивания -->
+    <Button
+        android:id="@+id/buttonDownload"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="8dp"
+        android:text="Скачать"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+</LinearLayout>
