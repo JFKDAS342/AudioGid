@@ -61,5 +61,54 @@
             android:clipToPadding="false"
             android:paddingBottom="16dp" />
 
+        <!-- Панель управления аудиогидом -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="8dp"
+            android:background="#EDE7F6">
+
+            <TextView
+                android:id="@+id/playerTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Аудиогид не запущен"
+                android:textColor="#392060"
+                android:textStyle="bold"
+                android:textSize="16sp"
+                android:gravity="center" />
+
+            <SeekBar
+                android:id="@+id/audioSeekBar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="1000" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center">
+
+                <Button
+                    android:id="@+id/buttonPause"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Пауза" />
+
+                <Button
+                    android:id="@+id/buttonResume"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Продолжить" />
+
+                <Button
+                    android:id="@+id/buttonStop"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Заново" />
+            </LinearLayout>
+        </LinearLayout>
     </LinearLayout>
 </FrameLayout>

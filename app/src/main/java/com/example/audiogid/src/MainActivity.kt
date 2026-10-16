@@ -1,5 +1,7 @@
 package com.example.audiogid.src
 
+import android.media.MediaPlayer
+import java.io.File
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
@@ -14,16 +16,75 @@ import com.example.audiogid.data.ExhibitAdapter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.os.Handler
+import android.os.Looper
+import android.widget.Button
+import android.widget.SeekBar
+import android.widget.TextView
 
 class MainActivity : AppCompatActivity() {
-
+    private val publicFolderUrl =
+        "https://disk.yandex.ru/d/QNVM3-QBRe9uZg"
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: ExhibitAdapter
     private var gradientView: View? = null
+    private var mediaPlayer: MediaPlayer? = null
+    private lateinit var playerTitle: TextView
+    private lateinit var audioSeekBar: SeekBar
 
+    private val playerHandler = Handler(Looper.getMainLooper())
+    private var isPrepared = false
+    private var isUserSeeking = false
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        playerTitle = findViewById(R.id.playerTitle)
+        audioSeekBar = findViewById(R.id.audioSeekBar)
+
+        findViewById<Button>(R.id.buttonPause).setOnClickListener {
+            if (isPrepared && mediaPlayer?.isPlaying == true) {
+                mediaPlayer?.pause()
+            }
+        }
+
+        findViewById<Button>(R.id.buttonResume).setOnClickListener {
+            if (isPrepared && mediaPlayer?.isPlaying == false) {
+                mediaPlayer?.start()
+                playerHandler.post(updateProgress)
+            }
+        }
+
+        findViewById<Button>(R.id.buttonStop).setOnClickListener {
+            stopAudio()
+            playerTitle.text = "Аудиогид остановлен"
+            audioSeekBar.progress = 0
+        }
+
+        audioSeekBar.setOnSeekBarChangeListener(
+            object : SeekBar.OnSeekBarChangeListener {
+
+                override fun onStartTrackingTouch(seekBar: SeekBar) {
+                    isUserSeeking = true
+                }
+
+                override fun onProgressChanged(
+                    seekBar: SeekBar,
+                    progress: Int,
+                    fromUser: Boolean
+                ) {
+                    if (fromUser && isPrepared) {
+                        val duration = mediaPlayer?.duration ?: 0
+                        val newPosition = duration * progress / 1000
+                        mediaPlayer?.seekTo(newPosition)
+                    }
+                }
+
+                override fun onStopTrackingTouch(seekBar: SeekBar) {
+                    isUserSeeking = false
+                }
+            }
+        )
 
         gradientView = findViewById<View>(R.id.gradientTwo)?.also {
             AnimationHelper.startGradientAnimation(it)
@@ -32,7 +93,9 @@ class MainActivity : AppCompatActivity() {
         recyclerView = findViewById(R.id.exhibitRecyclerView)
         recyclerView.layoutManager = LinearLayoutManager(this)
 
-        adapter = ExhibitAdapter(emptyList<Exhibit>()) { exhibit -> onDownload(exhibit) }
+        adapter = ExhibitAdapter(emptyList<Exhibit>()) { exhibit ->
+            onExhibitClick(exhibit)
+        }
         recyclerView.adapter = adapter
 
         lifecycleScope.launch {
@@ -52,6 +115,131 @@ class MainActivity : AppCompatActivity() {
                     "Ошибка загрузки: ${e.message}",
                     Toast.LENGTH_LONG
                 ).show()
+            }
+        }
+    }
+
+    private fun onExhibitClick(exhibit: Exhibit) {
+        val path = exhibit.localPath
+
+        if (path == null) {
+            // Аудио ещё не скачано
+            onDownload(exhibit)
+        } else {
+            // Аудио уже скачано
+            playAudio(path, exhibit.title)
+        }
+    }
+
+    private fun stopAudio() {
+        playerHandler.removeCallbacks(updateProgress)
+
+        val player = mediaPlayer
+        mediaPlayer = null
+        isPrepared = false
+
+        if (player != null) {
+            try {
+                player.stop()
+            } catch (_: IllegalStateException) {
+                // Плеер мог ещё не подготовиться
+            } finally {
+                player.release()
+            }
+        }
+
+        audioSeekBar.progress = 0
+    }
+
+    private fun playAudio(path: String, title: String) {
+        val audioFile = File(path)
+
+        // Проверяем, существует ли файл
+        if (!audioFile.exists()) {
+            Toast.makeText(
+                this,
+                "Аудиофайл не найден. Скачай его заново.",
+                Toast.LENGTH_LONG
+            ).show()
+
+            return
+        }
+
+        // Останавливаем предыдущую запись, если она играла
+        stopAudio()
+
+        try {
+            mediaPlayer = MediaPlayer().apply {
+
+                // Указываем путь к MP3 на телефоне
+                setDataSource(audioFile.absolutePath)
+
+                // Когда файл будет готов к воспроизведению
+                setOnPreparedListener { player ->
+                    isPrepared = true
+                    audioSeekBar.progress = 0
+                    audioSeekBar.max = 1000
+                    playerTitle.text = "Сейчас играет: $title"
+
+                    player.start()
+                    playerHandler.removeCallbacks(updateProgress)
+                    playerHandler.post(updateProgress)
+
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Воспроизводится: $title",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+                // Когда аудио закончится
+                setOnCompletionListener {
+                    stopAudio()
+                }
+
+                // Если возникла ошибка воспроизведения
+                setOnErrorListener { _, _, _ ->
+                    stopAudio()
+
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Не удалось воспроизвести аудио",
+                        Toast.LENGTH_LONG
+                    ).show()
+
+                    true
+                }
+
+                // Подготавливаем аудио без блокировки интерфейса
+                prepareAsync()
+            }
+
+        } catch (e: Exception) {
+            stopAudio()
+
+            Toast.makeText(
+                this,
+                "Ошибка воспроизведения: ${e.message}",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    private val updateProgress = object : Runnable {
+        override fun run() {
+            val player = mediaPlayer
+
+            if (isPrepared && player != null) {
+                val duration = player.duration
+
+                if (duration > 0 && !isUserSeeking) {
+                    audioSeekBar.progress =
+                        player.currentPosition * 1000 / duration
+                }
+
+                if (player.isPlaying) {
+                    playerHandler.postDelayed(this, 500)
+                }
             }
         }
     }
@@ -124,9 +312,16 @@ class MainActivity : AppCompatActivity() {
 
                 val filePath = withContext(Dispatchers.IO) {
 
+                    // Получаем прямую ссылку на нужный MP3
+                    val downloadUrl = YandexDiskDownloader.getDownloadUrl(
+                        publicFolderUrl = publicFolderUrl,
+                        fileName = exhibit.audioName
+                    )
+
+                    // Скачиваем MP3 на телефон
                     AudioDownloader.download(
                         context = applicationContext,
-                        urlString = getAudioUrl(exhibit),
+                        urlString = downloadUrl,
                         fileName = exhibit.audioName
                     )
                 }
